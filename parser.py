@@ -9,7 +9,7 @@ def p_program(p):
 def p_statement_print(p):
     '''statement : PRINT LPAREN expression RPAREN
                  | PRINT LPAREN STRING RPAREN'''
-    p[0] = f"Print: {p[3]}\n"
+    p[0] = f"{p[3]}\n"
 
 def p_expression_number(p):
     'expression : NUMBER'
