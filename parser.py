@@ -6,17 +6,24 @@ precedence = (
     ('left', 'TIMES', 'DIVIDE'),
 )
 
+
 def p_program(p):
     '''program : START NEWLINE statements END'''
     p[0] = p[3]
 
+
 def p_statements(p):
     '''statements : statement
-                  | statements statement'''
-    if len(p) == 2:
+                  | statements statement
+                  | statements NEWLINE
+                  | NEWLINE'''
+    if len(p) == 2 and p[1] != '\n':  # Single statement
         p[0] = [p[1]]
-    else:
+    elif len(p) == 3 and p[2] != '\n':  # Multiple statements
         p[0] = p[1] + [p[2]]
+    else:  # Empty line or trailing newline
+        p[0] = p[1] if len(p) == 3 else []
+
 
 def p_statement(p):
     '''statement : print_statement
@@ -36,17 +43,30 @@ def p_statement(p):
                  | class_definition'''
     p[0] = p[1]
 
+
 def p_print_statement(p):
-    '''print_statement : PRINT LPAREN expression RPAREN NEWLINE'''
-    p[0] = {"type": "print", "value": p[3]}
+    '''print_statement : PRINT LPAREN expression_list RPAREN NEWLINE'''
+    p[0] = {"type": "print", "values": p[3]}
+
+
+def p_expression_list(p):
+    '''expression_list : expression
+                       | expression_list COMMA expression'''
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[3]]
+
 
 def p_assignment_statement(p):
     '''assignment_statement : ID ASSIGN expression'''
     p[0] = {"type": "assignment", "target": p[1], "value": p[3]}
 
+
 def p_input_statement(p):
     '''input_statement : ID ASSIGN INPUT LPAREN RPAREN'''
     p[0] = {"type": "input", "target": p[1]}
+
 
 def p_expression(p):
     '''expression : expression PLUS term
@@ -57,6 +77,7 @@ def p_expression(p):
     else:
         p[0] = {"type": "binary_op", "op": p[2], "left": p[1], "right": p[3]}
 
+
 def p_term(p):
     '''term : term TIMES factor
             | term DIVIDE factor
@@ -65,6 +86,7 @@ def p_term(p):
         p[0] = p[1]
     else:
         p[0] = {"type": "binary_op", "op": p[2], "left": p[1], "right": p[3]}
+
 
 def p_factor(p):
     '''factor : NUMBER
@@ -76,11 +98,13 @@ def p_factor(p):
         if isinstance(p[1], int):
             p[0] = {"type": "number", "value": p[1]}
         elif isinstance(p[1], str) and (p[1].startswith('"') or p[1].startswith("'")):
-            p[0] = {"type": "string", "value": p[1][1:-1]}
+            raw_str = p[1][1:-1]
+            p[0] = {"type": "string", "value": bytes(raw_str, "utf-8").decode("unicode_escape")}
         else:
             p[0] = {"type": "identifier", "name": p[1]}
     else:
         p[0] = {"type": "unary_op", "op": "NEGATE", "operand": p[2]}
+
 
 def p_comparison(p):
     '''comparison : expression LESS expression
@@ -99,6 +123,7 @@ def p_comparison(p):
     }
     p[0] = {"type": "comparison", "op": op_map[p[2]], "left": p[1], "right": p[3]}
 
+
 def p_if_statement(p):
     '''if_statement : IF LPAREN expression RPAREN COLON statements
                     | IF LPAREN expression RPAREN COLON statements ELSE COLON statements
@@ -111,17 +136,21 @@ def p_if_statement(p):
         elif_clause = {"type": "if", "condition": p[9], "body": p[12]}
         p[0] = {"type": "if", "condition": p[3], "body": p[6], "else_body": [elif_clause]}
 
+
 def p_while_statement(p):
     '''while_statement : WHILE LPAREN expression RPAREN COLON statements'''
     p[0] = {"type": "while", "condition": p[3], "body": p[6]}
+
 
 def p_for_statement(p):
     '''for_statement : FOR LPAREN ID IN RANGE LPAREN NUMBER COMMA NUMBER RPAREN RPAREN COLON statements'''
     p[0] = {"type": "for", "var": p[3], "start": p[7], "end": p[9], "body": p[13]}
 
+
 def p_function_def(p):
     '''function_def : DEF ID LPAREN parameter_list RPAREN COLON statements'''
     p[0] = {"type": "function_def", "name": p[2], "params": p[4], "body": p[7]}
+
 
 def p_parameter_list(p):
     '''parameter_list : empty
@@ -134,9 +163,11 @@ def p_parameter_list(p):
     elif len(p) == 4:
         p[0] = p[1] + [p[3]]
 
+
 def p_function_call(p):
     '''function_call : ID LPAREN argument_list RPAREN'''
     p[0] = {"type": "function_call", "name": p[1], "args": p[3]}
+
 
 def p_argument_list(p):
     '''argument_list : empty
@@ -149,21 +180,26 @@ def p_argument_list(p):
     elif len(p) == 4:
         p[0] = p[1] + [p[3]]
 
+
 def p_return_statement(p):
     '''return_statement : RETURN expression'''
     p[0] = {"type": "return", "value": p[2]}
+
 
 def p_break_statement(p):
     '''break_statement : BREAK'''
     p[0] = {"type": "break"}
 
+
 def p_continue_statement(p):
     '''continue_statement : CONTINUE'''
     p[0] = {"type": "continue"}
 
+
 def p_pass_statement(p):
     '''pass_statement : PASS'''
     p[0] = {"type": "pass"}
+
 
 def p_try_except_statement(p):
     '''try_except_statement : TRY COLON statements EXCEPT COLON statements
@@ -173,6 +209,7 @@ def p_try_except_statement(p):
     else:
         p[0] = {"type": "try_except", "try_body": p[3], "except_body": p[6], "finally_body": p[10]}
 
+
 def p_import_statement(p):
     '''import_statement : IMPORT ID
                         | FROM ID IMPORT ID'''
@@ -180,6 +217,7 @@ def p_import_statement(p):
         p[0] = {"type": "import", "module": p[2]}
     else:
         p[0] = {"type": "from_import", "module": p[2], "name": p[4]}
+
 
 def p_class_definition(p):
     '''class_definition : CLASS ID COLON statements
@@ -189,9 +227,11 @@ def p_class_definition(p):
     else:
         p[0] = {"type": "class", "name": p[2], "parent": p[4], "body": p[7]}
 
+
 def p_empty(p):
     'empty :'
     pass
+
 
 def p_error(p):
     if p:
@@ -199,7 +239,9 @@ def p_error(p):
     else:
         print("ವಾಕ್ಯ ರಚನಾ ದೋಷ/Syntax error at EOF")
 
+
 parser = yacc.yacc()
+
 
 def parse(code):
     try:
@@ -214,6 +256,7 @@ def parse(code):
     except Exception as e:
         print(f"ಅನಿರೀಕ್ಷಿತ ದೋಷ/Unexpected error: {e}")
         return None
+
 
 class KannadaInterpreter:
     def __init__(self):
@@ -239,8 +282,9 @@ class KannadaInterpreter:
         node_type = node.get('type', '')
 
         if node_type == 'print':
-            value = self.evaluate_expression(node['value'])
-            print(value)
+            values = [self.evaluate_expression(value) for value in node['values']]
+            output = " ".join(str(value) for value in values)
+            print(output, end="" if '\n' in output else " ")
             return None
 
         elif node_type == 'assignment':
@@ -314,16 +358,16 @@ class KannadaInterpreter:
                     self.evaluate(node['finally_body'])
 
         elif node_type == 'import':
-            print(f"Imported module: {node['module']}")
+            print(f"Imported module: {node['module']}", end=" ")
             return None
 
         elif node_type == 'from_import':
-            print(f"Imported {node['name']} from {node['module']}")
+            print(f"Imported {node['name']} from {node['module']}", end=" ")
             return None
 
         elif node_type == 'class':
             class_name = node['name']
-            print(f"Defined class: {class_name}")
+            print(f"Defined class: {class_name}", end=" ")
             return None
 
         else:
@@ -409,6 +453,7 @@ class KannadaInterpreter:
             return None
         raise NameError(f"ಅಪರಿಚಿತ ಕಾರ್ಯ/Unknown function: {func_name}")
 
+
 def run_compiler(code):
     try:
         ast = parse(code)
@@ -417,16 +462,20 @@ def run_compiler(code):
             return
         interpreter = KannadaInterpreter()
         interpreter.evaluate(ast)
+        print()  # Ensure final newline
         print("ಯಶಸ್ವಿಯಾಗಿ ಕಾರ್ಯಗತಗೊಂಡಿದೆ/Successfully executed")
     except Exception as e:
         print(f"ದೋಷ/Error: {str(e)}")
+
 
 if __name__ == "__main__":
     test_code = """
     ಪ್ರಾರಂಭಿಸಿ
         ಹೆಸರು = ಆಗು()
-        ಮುದ್ರಿಸಿ(ಹೆಸರು)
+
         a = ಆಗು()
+        ಮುದ್ರಿಸಿ(ಹೆಸರು,a)
+
         ಮುದ್ರಿಸಿ(a)
     ಮುಗಿಯಿರಿ
     """

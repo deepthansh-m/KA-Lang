@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, font, scrolledtext, simpledialog
 from parser import parse
+import os
+
 
 class KannadaProgrammingIDE:
     def __init__(self, root):
@@ -9,9 +11,6 @@ class KannadaProgrammingIDE:
         self.root.geometry("1000x800")
         self.kannada_font = font.Font(family="Noto Sans Kannada", size=12)
         self.current_file = None
-        self.variables = {}
-        self.functions = {}
-        self.call_stack = []
         self.create_menu()
         self.create_toolbar()
         self.create_editor_area()
@@ -62,8 +61,10 @@ class KannadaProgrammingIDE:
     def load_example_code(self):
         example_code = """ಪ್ರಾರಂಭಿಸಿ
     ಹೆಸರು = ಆಗು()
-    ಮುದ್ರಿಸಿ(ಹೆಸರು)
+
     a = ಆಗು()
+    ಮುದ್ರಿಸಿ(ಹೆಸರು,a)
+
     ಮುದ್ರಿಸಿ(a)
 ಮುಗಿಯಿರಿ"""
         self.code_editor.insert(tk.END, example_code)
@@ -103,221 +104,241 @@ class KannadaProgrammingIDE:
             self.current_file = file_path
             self.status_bar.config(text=f"ಉಳಿಸಲಾಗಿದೆ: {os.path.basename(file_path)}")
 
-    def evaluate(self, node):
-        if isinstance(node, list):
-            result = None
-            for statement in node:
-                result = self.evaluate_statement(statement)
-                if result and result.get('type') == 'return':
-                    return result
-            return result
-        else:
-            return self.evaluate_statement(node)
-
-    def evaluate_statement(self, node):
-        if not node:
-            return None
-
-        node_type = node.get('type', '')
-
-        if node_type == 'print':
-            value = self.evaluate_expression(node['value'])
-            self.output_area.configure(state="normal")
-            self.output_area.insert(tk.END, f"{value}\n")
-            self.output_area.configure(state="disabled")
-            self.output_area.see(tk.END)
-            self.root.update()  # Force GUI update to show print immediately
-            return None
-
-        elif node_type == 'assignment':
-            value = self.evaluate_expression(node['value'])
-            self.variables[node['target']] = value
-            return None
-
-        elif node_type == 'input':
-            user_input = simpledialog.askstring("ಒಡ್ಡಿ/Input", "ಒಡ್ಡಿ/Enter input:", parent=self.root) or ""
-            self.variables[node['target']] = user_input
-            return None
-
-        elif node_type == 'if':
-            condition = self.evaluate_expression(node['condition'])
-            if condition:
-                return self.evaluate(node['body'])
-            elif 'else_body' in node:
-                return self.evaluate(node['else_body'])
-
-        elif node_type == 'while':
-            condition = self.evaluate_expression(node['condition'])
-            result = None
-            while condition:
-                result = self.evaluate(node['body'])
-                if result and (result.get('type') == 'return' or
-                               result.get('type') == 'break'):
-                    break
-                condition = self.evaluate_expression(node['condition'])
-            return None if result and result.get('type') == 'break' else result
-
-        elif node_type == 'for':
-            var_name = node['var']
-            start = int(node['start'])
-            end = int(node['end'])
-            result = None
-            for i in range(start, end):
-                self.variables[var_name] = i
-                result = self.evaluate(node['body'])
-                if result and (result.get('type') == 'return' or
-                               result.get('type') == 'break'):
-                    break
-            return None if result and result.get('type') == 'break' else result
-
-        elif node_type == 'function_def':
-            self.functions[node['name']] = node
-            return None
-
-        elif node_type == 'function_call':
-            return self.call_function(node)
-
-        elif node_type == 'return':
-            return {'type': 'return', 'value': self.evaluate_expression(node['value'])}
-
-        elif node_type == 'break':
-            return {'type': 'break'}
-
-        elif node_type == 'continue':
-            return {'type': 'continue'}
-
-        elif node_type == 'pass':
-            return None
-
-        elif node_type == 'try_except':
-            try:
-                return self.evaluate(node['try_body'])
-            except Exception as e:
-                return self.evaluate(node['except_body'])
-            finally:
-                if 'finally_body' in node:
-                    self.evaluate(node['finally_body'])
-
-        elif node_type == 'import':
-            self.output_area.configure(state="normal")
-            self.output_area.insert(tk.END, f"Imported module: {node['module']}\n")
-            self.output_area.configure(state="disabled")
-            return None
-
-        elif node_type == 'from_import':
-            self.output_area.configure(state="normal")
-            self.output_area.insert(tk.END, f"Imported {node['name']} from {node['module']}\n")
-            self.output_area.configure(state="disabled")
-            return None
-
-        elif node_type == 'class':
-            class_name = node['name']
-            self.output_area.configure(state="normal")
-            self.output_area.insert(tk.END, f"Defined class: {class_name}\n")
-            self.output_area.configure(state="disabled")
-            return None
-
-        else:
-            return self.evaluate_expression(node)
-
-    def evaluate_expression(self, expr):
-        if not expr:
-            return None
-
-        if isinstance(expr, (int, float, str, bool)):
-            return expr
-
-        expr_type = expr.get('type', '')
-
-        if expr_type == 'number':
-            return int(expr['value'])
-
-        elif expr_type == 'string':
-            return expr['value']
-
-        elif expr_type == 'identifier':
-            name = expr['name']
-            if name in self.variables:
-                return self.variables[name]
-            raise NameError(f"ಅಪರಿಚಿತ ಚರ/Unknown variable: {name}")
-
-        elif expr_type == 'binary_op':
-            left = self.evaluate_expression(expr['left'])
-            right = self.evaluate_expression(expr['right'])
-            op = expr['op']
-            if op == '+':
-                return left + right
-            elif op == '-':
-                return left - right
-            elif op == '*':
-                return left * right
-            elif op == '/':
-                return left / right
-
-        elif expr_type == 'unary_op':
-            operand = self.evaluate_expression(expr['operand'])
-            op = expr['op']
-            if op == 'NEGATE':
-                return -operand
-
-        elif expr_type == 'comparison':
-            left = self.evaluate_expression(expr['left'])
-            right = self.evaluate_expression(expr['right'])
-            op = expr['op']
-            if op == 'LESS':
-                return left < right
-            elif op == 'GREATER':
-                return left > right
-            elif op == 'EQUAL':
-                return left == right
-            elif op == 'NOTEQUAL':
-                return left != right
-            elif op == 'LESSEQUAL':
-                return left <= right
-            elif op == 'GREATEREQUAL':
-                return left >= right
-
-        elif expr_type == 'function_call':
-            return self.call_function(expr)
-
-        return None
-
-    def call_function(self, node):
-        func_name = node['name']
-        if func_name in self.functions:
-            func_def = self.functions[func_name]
-            args = [self.evaluate_expression(arg) for arg in node['args']]
-            old_vars = self.variables.copy()
-            for i, param in enumerate(func_def['params']):
-                if i < len(args):
-                    self.variables[param] = args[i]
-                else:
-                    self.variables[param] = None
-            result = self.evaluate(func_def['body'])
-            self.variables = old_vars
-            if result and result.get('type') == 'return':
-                return result['value']
-            return None
-        raise NameError(f"ಅಪರಿಚಿತ ಕಾರ್ಯ/Unknown function: {func_name}")
-
     def run_code(self):
         code = self.code_editor.get(1.0, tk.END).strip()
         print(f"Input code:\n{code}")
         self.output_area.configure(state="normal")
         self.output_area.delete(1.0, tk.END)
 
+        def gui_input(prompt):
+            value = simpledialog.askstring("ಒಡ್ಡಿ/Input", prompt, parent=self.root) or ""
+            return value
+
+        class KannadaInterpreter:
+            def __init__(self, output_area, root):
+                self.variables = {}
+                self.functions = {}
+                self.call_stack = []
+                self.output_area = output_area
+                self.root = root
+
+            def evaluate(self, node):
+                if isinstance(node, list):
+                    result = None
+                    for statement in node:
+                        result = self.evaluate_statement(statement)
+                        if result and result.get('type') == 'return':
+                            return result
+                    return result
+                else:
+                    return self.evaluate_statement(node)
+
+            def evaluate_statement(self, node):
+                if not node:
+                    return None
+
+                node_type = node.get('type', '')
+
+                if node_type == 'print':
+                    values = [self.evaluate_expression(value) for value in node['values']]
+                    output = " ".join(str(value) for value in values)
+                    self.output_area.configure(state="normal")
+                    if '\n' in output:
+                        self.output_area.insert(tk.END, output)
+                    else:
+                        self.output_area.insert(tk.END, output + " ")
+                    self.output_area.configure(state="disabled")
+                    self.output_area.see(tk.END)
+                    self.root.update()
+                    return None
+
+                elif node_type == 'assignment':
+                    value = self.evaluate_expression(node['value'])
+                    self.variables[node['target']] = value
+                    return None
+
+                elif node_type == 'input':
+                    user_input = gui_input("ಒಡ್ಡಿ/Enter input:")
+                    self.variables[node['target']] = user_input
+                    return None
+
+                elif node_type == 'if':
+                    condition = self.evaluate_expression(node['condition'])
+                    if condition:
+                        return self.evaluate(node['body'])
+                    elif 'else_body' in node:
+                        return self.evaluate(node['else_body'])
+
+                elif node_type == 'while':
+                    condition = self.evaluate_expression(node['condition'])
+                    result = None
+                    while condition:
+                        result = self.evaluate(node['body'])
+                        if result and (result.get('type') == 'return' or
+                                       result.get('type') == 'break'):
+                            break
+                        condition = self.evaluate_expression(node['condition'])
+                    return None if result and result.get('type') == 'break' else result
+
+                elif node_type == 'for':
+                    var_name = node['var']
+                    start = int(node['start'])
+                    end = int(node['end'])
+                    result = None
+                    for i in range(start, end):
+                        self.variables[var_name] = i
+                        result = self.evaluate(node['body'])
+                        if result and (result.get('type') == 'return' or
+                                       result.get('type') == 'break'):
+                            break
+                    return None if result and result.get('type') == 'break' else result
+
+                elif node_type == 'function_def':
+                    self.functions[node['name']] = node
+                    return None
+
+                elif node_type == 'function_call':
+                    return self.call_function(node)
+
+                elif node_type == 'return':
+                    return {'type': 'return', 'value': self.evaluate_expression(node['value'])}
+
+                elif node_type == 'break':
+                    return {'type': 'break'}
+
+                elif node_type == 'continue':
+                    return {'type': 'continue'}
+
+                elif node_type == 'pass':
+                    return None
+
+                elif node_type == 'try_except':
+                    try:
+                        return self.evaluate(node['try_body'])
+                    except Exception as e:
+                        return self.evaluate(node['except_body'])
+                    finally:
+                        if 'finally_body' in node:
+                            self.evaluate(node['finally_body'])
+
+                elif node_type == 'import':
+                    self.output_area.configure(state="normal")
+                    self.output_area.insert(tk.END, f"Imported module: {node['module']} ")
+                    self.output_area.configure(state="disabled")
+                    return None
+
+                elif node_type == 'from_import':
+                    self.output_area.configure(state="normal")
+                    self.output_area.insert(tk.END, f"Imported {node['name']} from {node['module']} ")
+                    self.output_area.configure(state="disabled")
+                    return None
+
+                elif node_type == 'class':
+                    class_name = node['name']
+                    self.output_area.configure(state="normal")
+                    self.output_area.insert(tk.END, f"Defined class: {class_name} ")
+                    self.output_area.configure(state="disabled")
+                    return None
+
+                else:
+                    return self.evaluate_expression(node)
+
+            def evaluate_expression(self, expr):
+                if not expr:
+                    return None
+
+                if isinstance(expr, (int, float, str, bool)):
+                    return expr
+
+                expr_type = expr.get('type', '')
+
+                if expr_type == 'number':
+                    return int(expr['value'])
+
+                elif expr_type == 'string':
+                    return expr['value']
+
+                elif expr_type == 'identifier':
+                    name = expr['name']
+                    if name in self.variables:
+                        return self.variables[name]
+                    raise NameError(f"ಅಪರಿಚಿತ ಚರ/Unknown variable: {name}")
+
+                elif expr_type == 'binary_op':
+                    left = self.evaluate_expression(expr['left'])
+                    right = self.evaluate_expression(expr['right'])
+                    op = expr['op']
+                    if op == '+':
+                        return left + right
+                    elif op == '-':
+                        return left - right
+                    elif op == '*':
+                        return left * right
+                    elif op == '/':
+                        return left / right
+
+                elif expr_type == 'unary_op':
+                    operand = self.evaluate_expression(expr['operand'])
+                    op = expr['op']
+                    if op == 'NEGATE':
+                        return -operand
+
+                elif expr_type == 'comparison':
+                    left = self.evaluate_expression(expr['left'])
+                    right = self.evaluate_expression(expr['right'])
+                    op = expr['op']
+                    if op == 'LESS':
+                        return left < right
+                    elif op == 'GREATER':
+                        return left > right
+                    elif op == 'EQUAL':
+                        return left == right
+                    elif op == 'NOTEQUAL':
+                        return left != right
+                    elif op == 'LESSEQUAL':
+                        return left <= right
+                    elif op == 'GREATEREQUAL':
+                        return left >= right
+
+                elif expr_type == 'function_call':
+                    return self.call_function(expr)
+
+                return None
+
+            def call_function(self, node):
+                func_name = node['name']
+                if func_name in self.functions:
+                    func_def = self.functions[func_name]
+                    args = [self.evaluate_expression(arg) for arg in node['args']]
+                    old_vars = self.variables.copy()
+                    for i, param in enumerate(func_def['params']):
+                        if i < len(args):
+                            self.variables[param] = args[i]
+                        else:
+                            self.variables[param] = None
+                    result = self.evaluate(func_def['body'])
+                    self.variables = old_vars
+                    if result and result.get('type') == 'return':
+                        return result['value']
+                    return None
+                raise NameError(f"ಅಪರಿಚಿತ ಕಾರ್ಯ/Unknown function: {func_name}")
+
         try:
             ast = parse(code)
             if ast is None:
                 self.output_area.insert(tk.END, "ದೋಷ/Error: Parsing failed due to syntax error\n")
             else:
-                self.evaluate(ast)
-                self.output_area.insert(tk.END, "ಯಶಸ್ವಿಯಾಗಿ ಕಾರ್ಯಗತಗೊಂಡಿದೆ/Successfully executed\n")
+                interpreter = KannadaInterpreter(self.output_area, self.root)
+                interpreter.evaluate(ast)
+                self.output_area.configure(state="normal")
+                self.output_area.insert(tk.END, "\nಯಶಸ್ವಿಯಾಗಿ ಕಾರ್ಯಗತಗೊಂಡಿದೆ/Successfully executed\n")
+                self.output_area.configure(state="disabled")
         except Exception as e:
             self.output_area.insert(tk.END, f"ದೋಷ/Error: {str(e)}\n")
+            self.output_area.configure(state="disabled")
 
-        self.output_area.configure(state="disabled")
         print(f"Output:\n{self.output_area.get(1.0, tk.END).strip()}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
