@@ -1,16 +1,14 @@
 import ply.lex as lex
 
-# Token list (Fully Kannada-based Programming Language Tokens)
 tokens = (
     'NUMBER', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'ID', 'NEWLINE', 'GREATER',
     'LESS', 'EQUAL', 'NOTEQUAL', 'LESSEQUAL', 'GREATEREQUAL',
     'PRINT', 'LPAREN', 'RPAREN', 'ASSIGN', 'COLON', 'COMMA', 'STRING',
     'IF', 'ELSE', 'ELIF', 'WHILE', 'FOR', 'DEF', 'RETURN', 'CLASS', 'TRY',
     'EXCEPT', 'FINALLY', 'BREAK', 'CONTINUE', 'PASS', 'IN', 'RANGE', 'IMPORT',
-    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END'
+    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END', 'INPUT'  # Added INPUT
 )
 
-# Operator tokens
 t_PLUS = r'\+'
 t_MINUS = r'-'
 t_TIMES = r'\*'
@@ -27,29 +25,24 @@ t_RPAREN = r'\)'
 t_COLON = r':'
 t_COMMA = r','
 
-# Define NUMBER token and convert to integer
 def t_NUMBER(t):
     r'\d+'
-    t.value = int(t.value)  # Convert string to integer
+    t.value = int(t.value)
     return t
 
 t_STRING = r'\".*?\"|\'[^\']*\''
 
-# Ignore whitespace and tabs
 t_ignore = ' \t'
 
-# Handle newlines
 def t_NEWLINE(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
     return t
 
-# Error handling
 def t_error(t):
     print(f"ಅಮಾನ್ಯ ಅಕ್ಷರ/Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
 
-# Keywords in Kannada
 def t_START(t):
     r'ಪ್ರಾರಂಭಿಸಿ'
     t.type = 'START'
@@ -63,6 +56,11 @@ def t_PRINT(t):
 def t_END(t):
     r'ಮುಗಿಯಿರಿ'
     t.type = 'END'
+    return t
+
+def t_INPUT(t):
+    r'ಆಗು'  # Kannada for "input"
+    t.type = 'INPUT'
     return t
 
 def t_IF(t):
@@ -170,13 +168,10 @@ def t_NONLOCAL(t):
     t.type = 'NONLOCAL'
     return t
 
-# Identifier pattern - supports Kannada and Latin characters
 t_ID = r'[\u0C80-\u0CFFa-zA-Z_][\u0C80-\u0CFFa-zA-Z_0-9]*'
 
-# Create the lexer
 lexer = lex.lex()
 
-# Test function
 def test_lexer(data):
     lexer.input(data)
     tokens_list = []
@@ -185,15 +180,14 @@ def test_lexer(data):
         if not tok:
             break
         tokens_list.append(tok)
-        print(tok)  # Debug statement to print tokens
+        print(tok)
     return tokens_list
 
 if __name__ == "__main__":
-    # Test the lexer
     test_data = """
     ಪ್ರಾರಂಭಿಸಿ
-        ಮುದ್ರಿಸಿ("ನಮಸ್ಕಾರ ವಿಶ್ವ")
-        ಮುದ್ರಿಸಿ(9)
+        ಹೆಸರು = ಆಗು()
+        ಮುದ್ರಿಸಿ(ಹೆಸರು)
     ಮುಗಿಯಿರಿ
     """
     tokens = test_lexer(test_data)

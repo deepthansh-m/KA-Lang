@@ -33,6 +33,12 @@ class KannadaInterpreter:
             self.variables[node['target']] = value
             return None
 
+        elif node_type == 'input':
+            # Prompt user for input and store it in the target variable
+            user_input = input("ಒಡ್ಡಿ/Enter input: ")
+            self.variables[node['target']] = user_input
+            return None
+
         elif node_type == 'if':
             condition = self.evaluate_expression(node['condition'])
             if condition:
@@ -209,7 +215,7 @@ def run_compiler(code):
 if __name__ == "__main__":
     test_code = """
     ಪ್ರಾರಂಭಿಸಿ
-        ಹೆಸರು = "ರಾಮ"
+        ಹೆಸರು = ಆಗು()
         ಮುದ್ರಿಸಿ(ಹೆಸರು)
     ಮುಗಿಯಿರಿ
     """
