@@ -26,7 +26,13 @@ t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COLON = r':'
 t_COMMA = r','
-t_NUMBER = r'\d+'
+
+# Define NUMBER token and convert to integer
+def t_NUMBER(t):
+    r'\d+'
+    t.value = int(t.value)  # Convert string to integer
+    return t
+
 t_STRING = r'\".*?\"|\'[^\']*\''
 
 # Ignore whitespace and tabs
@@ -59,11 +65,6 @@ def t_END(t):
     t.type = 'END'
     return t
 
-def t_INPUT(t):
-    r'ಆಗು'
-    t.type = 'INPUT'
-    return t
-
 def t_IF(t):
     r'ನಂತರ'
     t.type = 'IF'
@@ -89,11 +90,6 @@ def t_FOR(t):
     t.type = 'FOR'
     return t
 
-def t_DO(t):
-    r'ಮಾಡು'
-    t.type = 'DO'
-    return t
-
 def t_DEF(t):
     r'ನಿರ್ಧರಿಸು|ಕಾರ್ಯ'
     t.type = 'DEF'
@@ -102,26 +98,6 @@ def t_DEF(t):
 def t_RETURN(t):
     r'ಹಿಂತಿರುಗಿಸು'
     t.type = 'RETURN'
-    return t
-
-def t_AND(t):
-    r'ಹೌದು|ಮತ್ತು'
-    t.type = 'AND'
-    return t
-
-def t_OR(t):
-    r'ಅಥವಾ'
-    t.type = 'OR'
-    return t
-
-def t_NOT(t):
-    r'ಹಾಗೆಇಲ್ಲ|ಅಲ್ಲ'
-    t.type = 'NOT'
-    return t
-
-def t_ISA(t):
-    r'ಇದು'
-    t.type = 'ISA'
     return t
 
 def t_CLASS(t):
@@ -144,16 +120,6 @@ def t_FINALLY(t):
     t.type = 'FINALLY'
     return t
 
-def t_RAISE(t):
-    r'ಎಬ್ಬಿಸು'
-    t.type = 'RAISE'
-    return t
-
-def t_WITH(t):
-    r'ಜತೆಗೆ'
-    t.type = 'WITH'
-    return t
-
 def t_BREAK(t):
     r'ಮುರಿದುಬಿಡು'
     t.type = 'BREAK'
@@ -167,16 +133,6 @@ def t_CONTINUE(t):
 def t_PASS(t):
     r'ಹೋದರೂ'
     t.type = 'PASS'
-    return t
-
-def t_YIELD(t):
-    r'ಕೊಡು'
-    t.type = 'YIELD'
-    return t
-
-def t_LAMBDA(t):
-    r'ಲ್ಯಾಂಬ್ಡಾ'
-    t.type = 'LAMBDA'
     return t
 
 def t_IN(t):
@@ -237,9 +193,9 @@ if __name__ == "__main__":
     test_data = """
     ಪ್ರಾರಂಭಿಸಿ
         ಮುದ್ರಿಸಿ("ನಮಸ್ಕಾರ ವಿಶ್ವ")
+        ಮುದ್ರಿಸಿ(9)
     ಮುಗಿಯಿರಿ
     """
-
     tokens = test_lexer(test_data)
     for token in tokens:
         print(token)

@@ -1,4 +1,4 @@
-from parser import parse  # Ensure this import is at the top of the file
+from parser import parse
 
 class KannadaInterpreter:
     def __init__(self):
@@ -25,7 +25,7 @@ class KannadaInterpreter:
 
         if node_type == 'print':
             value = self.evaluate_expression(node['value'])
-            print(value)  # Print the actual program output
+            print(value)
             return None
 
         elif node_type == 'assignment':
@@ -56,7 +56,6 @@ class KannadaInterpreter:
             start = int(node['start'])
             end = int(node['end'])
             result = None
-
             for i in range(start, end):
                 self.variables[var_name] = i
                 result = self.evaluate(node['body'])
@@ -94,17 +93,14 @@ class KannadaInterpreter:
                     self.evaluate(node['finally_body'])
 
         elif node_type == 'import':
-            # Simplified import handling
             print(f"Imported module: {node['module']}")
             return None
 
         elif node_type == 'from_import':
-            # Simplified from-import handling
             print(f"Imported {node['name']} from {node['module']}")
             return None
 
         elif node_type == 'class':
-            # Simplified class definition handling
             class_name = node['name']
             print(f"Defined class: {class_name}")
             return None
@@ -122,7 +118,7 @@ class KannadaInterpreter:
         expr_type = expr.get('type', '')
 
         if expr_type == 'number':
-            return expr['value']
+            return int(expr['value'])
 
         elif expr_type == 'string':
             return expr['value']
@@ -136,20 +132,18 @@ class KannadaInterpreter:
         elif expr_type == 'binary_op':
             left = self.evaluate_expression(expr['left'])
             right = self.evaluate_expression(expr['right'])
-
             op = expr['op']
-            if op == 'ADD':
+            if op == '+':
                 return left + right
-            elif op == 'SUBTRACT':
+            elif op == '-':
                 return left - right
-            elif op == 'MULTIPLY':
+            elif op == '*':
                 return left * right
-            elif op == 'DIVIDE':
+            elif op == '/':
                 return left / right
 
         elif expr_type == 'unary_op':
             operand = self.evaluate_expression(expr['operand'])
-
             op = expr['op']
             if op == 'NEGATE':
                 return -operand
@@ -157,7 +151,6 @@ class KannadaInterpreter:
         elif expr_type == 'comparison':
             left = self.evaluate_expression(expr['left'])
             right = self.evaluate_expression(expr['right'])
-
             op = expr['op']
             if op == 'LESS':
                 return left < right
@@ -179,85 +172,46 @@ class KannadaInterpreter:
 
     def call_function(self, node):
         func_name = node['name']
-
         if func_name in self.functions:
-            # User-defined function
             func_def = self.functions[func_name]
             args = [self.evaluate_expression(arg) for arg in node['args']]
-
-            # Create new scope with parameters
             old_vars = self.variables.copy()
-
-            # Set parameters in the new scope
             for i, param in enumerate(func_def['params']):
                 if i < len(args):
                     self.variables[param] = args[i]
                 else:
-                    self.variables[param] = None  # Default to None
-
-            # Execute function body
+                    self.variables[param] = None
             result = self.evaluate(func_def['body'])
-
-            # Restore old scope
             self.variables = old_vars
-
             if result and result.get('type') == 'return':
                 return result['value']
             return None
+        raise NameError(f"ಅಪರಿಚಿತ ಕಾರ್ಯ/Unknown function: {func_name}")
 
-        elif func_name == 'ಗುಣಿಸು' or func_name == 'multiply':
-            # Built-in multiply function
-            args = [self.evaluate_expression(arg) for arg in node['args']]
-            if len(args) == 2:
-                return args[0] * args[1]
-            else:
-                raise ValueError("ಗುಣಿಸು ಕ್ರಿಯೆಗೆ ಎರಡು ಮೌಲ್ಯಗಳು ಬೇಕು/multiply needs two arguments")
-
-        elif func_name == 'ಕೂಡಿಸು' or func_name == 'add':
-            # Built-in add function
-            args = [self.evaluate_expression(arg) for arg in node['args']]
-            return sum(args)
-
-        else:
-            raise NameError(f"ಅಪರಿಚಿತ ಕಾರ್ಯ/Unknown function: {func_name}")
-
-
-# Define the run_compiler function outside the class
 def run_compiler(code):
     try:
-        # Parse code
         ast = parse(code)
-
-        # Execute code
+        if ast is None:
+            return "ದೋಷ/Error: Parsing failed due to syntax error"
         interpreter = KannadaInterpreter()
-
-        # Redirect standard output to capture program output
         import io
         from contextlib import redirect_stdout
-
         output_capture = io.StringIO()
         with redirect_stdout(output_capture):
-            interpreter.evaluate(ast)  # Execute the program
-
-        # Get the captured program output
+            interpreter.evaluate(ast)
         program_output = output_capture.getvalue()
-
-        # Prepare the final output
-        output = program_output.strip()  # Remove extra newlines
+        output = program_output.strip()
         output += "\nಯಶಸ್ವಿಯಾಗಿ ಕಾರ್ಯಗತಗೊಂಡಿದೆ/Successfully executed"
-
         return output
     except Exception as e:
         return f"ದೋಷ/Error: {str(e)}"
 
-
-# Test the interpreter
 if __name__ == "__main__":
     test_code = """
     ಪ್ರಾರಂಭಿಸಿ
-        ಮುದ್ರಿಸಿ(9)
+        ಹೆಸರು = "ರಾಮ"
+        ಮುದ್ರಿಸಿ(ಹೆಸರು)
     ಮುಗಿಯಿರಿ
     """
-
     output = run_compiler(test_code)
     print(output)
