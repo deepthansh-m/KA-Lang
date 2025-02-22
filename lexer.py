@@ -1,42 +1,245 @@
 import ply.lex as lex
 
-# Token list (Python-related tokens translated to Kannada)
+# Token list (Fully Kannada-based Programming Language Tokens)
 tokens = (
     'NUMBER', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'ID', 'NEWLINE', 'GREATER',
-    'INPUT', 'PRINT', 'LPAREN', 'RPAREN', 'ASSIGN', 'EQUAL', 'IF', 'ELSE',
-    'WHILE', 'FOR', 'DEF', 'RETURN', 'INDENT', 'STRING', 'COLON', 'AND', 'OR', 'NOT'
+    'LESS', 'EQUAL', 'NOTEQUAL', 'LESSEQUAL', 'GREATEREQUAL',
+    'PRINT', 'LPAREN', 'RPAREN', 'ASSIGN', 'COLON', 'COMMA', 'STRING',
+    'IF', 'ELSE', 'ELIF', 'WHILE', 'FOR', 'DEF', 'RETURN', 'CLASS', 'TRY',
+    'EXCEPT', 'FINALLY', 'BREAK', 'CONTINUE', 'PASS', 'IN', 'RANGE', 'IMPORT',
+    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END'
 )
 
-# Kannada translations (both Kannada script and Romanized Kannada)
+# Operator tokens
 t_PLUS = r'\+'
 t_MINUS = r'-'
 t_TIMES = r'\*'
 t_DIVIDE = r'/'
 t_ASSIGN = r'='
 t_EQUAL = r'=='
+t_NOTEQUAL = r'!='
 t_GREATER = r'>'
-t_INPUT = r'ಆಗು(ಅವನು|ಅವಳು|ನಾನು) | input'
-t_PRINT = r'ಮುದ್ರಣ|print'
+t_LESS = r'<'
+t_LESSEQUAL = r'<='
+t_GREATEREQUAL = r'>='
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COLON = r':'
-t_ID = r'[a-zA-Z_][a-zA-Z_0-9]*'
+t_COMMA = r','
 t_NUMBER = r'\d+'
 t_STRING = r'\".*?\"|\'[^\']*\''
-t_AND = r'ಹೌದು|and'
-t_OR = r'ಅಥವಾ|or'
-t_NOT = r'ಹಾಗೆ ಇಲ್ಲ|not'
+
+# Ignore whitespace and tabs
 t_ignore = ' \t'
 
-# Handle newlines for line tracking
+# Handle newlines
 def t_NEWLINE(t):
-    r'\n'
-    t.lexer.lineno += 1
+    r'\n+'
+    t.lexer.lineno += len(t.value)
+    return t
 
-# Error handling for illegal characters
+# Error handling
 def t_error(t):
-    print(f"Illegal character '{t.value[0]}'")
+    print(f"ಅಮಾನ್ಯ ಅಕ್ಷರ/Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
 
-# Create the lexer object
+# Keywords in Kannada
+def t_START(t):
+    r'ಪ್ರಾರಂಭಿಸಿ'
+    t.type = 'START'
+    return t
+
+def t_PRINT(t):
+    r'ಮುದ್ರಿಸಿ|ಮುದ್ರಣ'
+    t.type = 'PRINT'
+    return t
+
+def t_END(t):
+    r'ಮುಗಿಯಿರಿ'
+    t.type = 'END'
+    return t
+
+def t_INPUT(t):
+    r'ಆಗು'
+    t.type = 'INPUT'
+    return t
+
+def t_IF(t):
+    r'ನಂತರ'
+    t.type = 'IF'
+    return t
+
+def t_ELSE(t):
+    r'ಇಲ್ಲದಿದ್ದರೆ'
+    t.type = 'ELSE'
+    return t
+
+def t_ELIF(t):
+    r'ಇಲ್ಲದಿದ್ದರೆನಂತರ'
+    t.type = 'ELIF'
+    return t
+
+def t_WHILE(t):
+    r'ಯಾವಾಗ'
+    t.type = 'WHILE'
+    return t
+
+def t_FOR(t):
+    r'ನಿಮಿತ್ತ'
+    t.type = 'FOR'
+    return t
+
+def t_DO(t):
+    r'ಮಾಡು'
+    t.type = 'DO'
+    return t
+
+def t_DEF(t):
+    r'ನಿರ್ಧರಿಸು|ಕಾರ್ಯ'
+    t.type = 'DEF'
+    return t
+
+def t_RETURN(t):
+    r'ಹಿಂತಿರುಗಿಸು'
+    t.type = 'RETURN'
+    return t
+
+def t_AND(t):
+    r'ಹೌದು|ಮತ್ತು'
+    t.type = 'AND'
+    return t
+
+def t_OR(t):
+    r'ಅಥವಾ'
+    t.type = 'OR'
+    return t
+
+def t_NOT(t):
+    r'ಹಾಗೆಇಲ್ಲ|ಅಲ್ಲ'
+    t.type = 'NOT'
+    return t
+
+def t_ISA(t):
+    r'ಇದು'
+    t.type = 'ISA'
+    return t
+
+def t_CLASS(t):
+    r'ವರ್ಗ'
+    t.type = 'CLASS'
+    return t
+
+def t_TRY(t):
+    r'ಪ್ರಯತ್ನಿಸು'
+    t.type = 'TRY'
+    return t
+
+def t_EXCEPT(t):
+    r'ಹೊರಹಾಕು'
+    t.type = 'EXCEPT'
+    return t
+
+def t_FINALLY(t):
+    r'ಕೊನೆಗೂ'
+    t.type = 'FINALLY'
+    return t
+
+def t_RAISE(t):
+    r'ಎಬ್ಬಿಸು'
+    t.type = 'RAISE'
+    return t
+
+def t_WITH(t):
+    r'ಜತೆಗೆ'
+    t.type = 'WITH'
+    return t
+
+def t_BREAK(t):
+    r'ಮುರಿದುಬಿಡು'
+    t.type = 'BREAK'
+    return t
+
+def t_CONTINUE(t):
+    r'ಮುಂದುವರಿಸು'
+    t.type = 'CONTINUE'
+    return t
+
+def t_PASS(t):
+    r'ಹೋದರೂ'
+    t.type = 'PASS'
+    return t
+
+def t_YIELD(t):
+    r'ಕೊಡು'
+    t.type = 'YIELD'
+    return t
+
+def t_LAMBDA(t):
+    r'ಲ್ಯಾಂಬ್ಡಾ'
+    t.type = 'LAMBDA'
+    return t
+
+def t_IN(t):
+    r'ಒಳಗೆ'
+    t.type = 'IN'
+    return t
+
+def t_RANGE(t):
+    r'ವ್ಯಾಪ್ತಿ'
+    t.type = 'RANGE'
+    return t
+
+def t_IMPORT(t):
+    r'ಆಮದು'
+    t.type = 'IMPORT'
+    return t
+
+def t_FROM(t):
+    r'ಇಂದ'
+    t.type = 'FROM'
+    return t
+
+def t_AS(t):
+    r'ಆಗಿ'
+    t.type = 'AS'
+    return t
+
+def t_GLOBAL(t):
+    r'ಜಾಗತಿಕ'
+    t.type = 'GLOBAL'
+    return t
+
+def t_NONLOCAL(t):
+    r'ಸ್ಥಳೀಯವಲ್ಲದ'
+    t.type = 'NONLOCAL'
+    return t
+
+# Identifier pattern - supports Kannada and Latin characters
+t_ID = r'[\u0C80-\u0CFFa-zA-Z_][\u0C80-\u0CFFa-zA-Z_0-9]*'
+
+# Create the lexer
 lexer = lex.lex()
+
+# Test function
+def test_lexer(data):
+    lexer.input(data)
+    tokens_list = []
+    while True:
+        tok = lexer.token()
+        if not tok:
+            break
+        tokens_list.append(tok)
+        print(tok)  # Debug statement to print tokens
+    return tokens_list
+
+if __name__ == "__main__":
+    # Test the lexer
+    test_data = """
+    ಪ್ರಾರಂಭಿಸಿ
+        ಮುದ್ರಿಸಿ("ನಮಸ್ಕಾರ ವಿಶ್ವ")
+    ಮುಗಿಯಿರಿ
+    """
+
+    tokens = test_lexer(test_data)
+    for token in tokens:
+        print(token)

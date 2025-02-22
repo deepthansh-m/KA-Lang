@@ -1,103 +1,138 @@
 import tkinter as tk
-from tkinter import messagebox, font
+from tkinter import filedialog, messagebox, font, scrolledtext
 from interpreter import run_compiler
+import os
 
-def compile_code():
-    code = code_text.get("1.0", "end-1c")
-    try:
-        result = run_compiler(code)
-        output_text.delete(1.0, tk.END)
-        output_text.insert(tk.END, result)
-    except Exception as e:
-        messagebox.showerror("ದೋಷ/Error", f"ಸಂಕಲನ ದೋಷ/Compilation Error: {e}")
 
-# Create the main window
-root = tk.Tk()
-root.title("ಕನ್ನಡ ಪ್ರೋಗ್ರಾಮಿಂಗ್ ಭಾಷೆ ಸಂಪಾದಕ / Kannada Programming Language Editor")
+class KannadaProgrammingIDE:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("ಕನ್ನಡ ಪ್ರೋಗ್ರಾಮಿಂಗ್ ಭಾಷೆ ಸಂಪಾದಕ / Kannada Programming Language IDE")
+        self.root.geometry("1000x800")
 
-# Set up fonts for Kannada text
-kannada_font = font.Font(family="Noto Sans Kannada", size=12)
+        # Set up fonts for Kannada text
+        self.kannada_font = font.Font(family="Noto Sans Kannada", size=12)
 
-# Create main frame
-main_frame = tk.Frame(root)
-main_frame.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
+        # Current file
+        self.current_file = None
 
-# Labels
-input_label = tk.Label(main_frame, text="ಕೋಡ್ ಬರೆಯಿರಿ / Write Code:", font=kannada_font)
-input_label.pack(anchor='w', pady=(5,0))
+        # Create main layout
+        self.create_menu()
+        self.create_toolbar()
+        self.create_editor_area()
+        self.create_output_area()
+        self.create_status_bar()
 
-# Code Input Area
-code_text = tk.Text(main_frame, height=15, width=100, font=kannada_font)
-code_text.pack(pady=5)
+        # Set initial example code
+        self.load_example_code()
 
-# Add example placeholder text
-placeholder_text = """# ಉದಾಹರಣೆ / Example:
-ಕಾರ್ಯ ಸಂಖ್ಯೆಕೂಡಿಸು(ಎ, ಬಿ):
-    ಹಿಂತಿರುಗಿಸು ಎ ಕೂಡಿಸು ಬಿ
+        # Configure styles
+        self.configure_styles()
 
-# You can also write in English:
-def add_numbers(a, b):
-    return a + b"""
-code_text.insert("1.0", placeholder_text)
+    def create_menu(self):
+        menubar = tk.Menu(self.root)
 
-# Frame for buttons
-button_frame = tk.Frame(main_frame)
-button_frame.pack(pady=5)
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="ಹೊಸ / New", command=self.new_file)
+        file_menu.add_command(label="ತೆರೆ / Open", command=self.open_file)
+        file_menu.add_command(label="ಉಳಿಸು / Save", command=self.save_file)
+        file_menu.add_command(label="ಹೀಗೆ ಉಳಿಸು / Save As", command=self.save_as_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="ನಿರ್ಗಮಿಸು / Exit", command=self.root.quit)
+        menubar.add_cascade(label="ಫೈಲ್ / File", menu=file_menu)
 
-# Compile Button
-compile_button = tk.Button(
-    button_frame,
-    text="ಸಂಕಲನ / Compile",
-    command=compile_code,
-    font=kannada_font,
-    bg="#4CAF50",
-    padx=20
-)
-compile_button.pack(side=tk.LEFT, padx=5)
+        # Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        edit_menu.add_command(label="ಕತ್ತರಿಸು / Cut", command=lambda: self.code_editor.event_generate("<<Cut>>"))
+        edit_menu.add_command(label="ನಕಲು / Copy", command=lambda: self.code_editor.event_generate("<<Copy>>"))
+        edit_menu.add_command(label="ಅಂಟಿಸು / Paste", command=lambda: self.code_editor.event_generate("<<Paste>>"))
+        menubar.add_cascade(label="ಸಂಪಾದನೆ / Edit", menu=edit_menu)
 
-# Clear Button
-def clear_code():
-    code_text.delete("1.0", tk.END)
-    output_text.delete("1.0", tk.END)
+        # Run menu
+        run_menu = tk.Menu(menubar, tearoff=0)
+        run_menu.add_command(label="ಚಲಾಯಿಸು / Run", command=self.run_code)
+        menubar.add_cascade(label="ಚಲಾಯಿಸು / Run", menu=run_menu)
 
-clear_button = tk.Button(
-    button_frame,
-    text="ತೆರವುಗೊಳಿಸು / Clear",
-    command=clear_code,
-    font=kannada_font,
-    bg="#f44336",
-    padx=20
-)
-clear_button.pack(side=tk.LEFT, padx=5)
+        self.root.config(menu=menubar)
 
-# Output Label
-output_label = tk.Label(main_frame, text="ಫಲಿತಾಂಶ / Output:", font=kannada_font)
-output_label.pack(anchor='w', pady=(10,0))
+    def create_toolbar(self):
+        self.toolbar = tk.Frame(self.root, bd=1, relief=tk.RAISED)
+        self.toolbar.pack(side=tk.TOP, fill=tk.X)
 
-# Output Area
-output_text = tk.Text(main_frame, height=10, width=100, font=kannada_font)
-output_text.pack(pady=5)
+        run_button = tk.Button(self.toolbar, text="ಚಲಾಯಿಸು / Run", command=self.run_code)
+        run_button.pack(side=tk.LEFT, padx=5, pady=2)
 
-# Status bar
-status_bar = tk.Label(
-    main_frame,
-    text="ಸಿದ್ಧ / Ready",
-    font=kannada_font,
-    bd=1,
-    relief=tk.SUNKEN,
-    anchor=tk.W
-)
-status_bar.pack(fill=tk.X, pady=(5,0))
+    def create_editor_area(self):
+        self.code_editor = scrolledtext.ScrolledText(self.root, font=self.kannada_font, wrap=tk.WORD)
+        self.code_editor.pack(expand=True, fill=tk.BOTH)
 
-# Set minimum window size
-root.minsize(800, 600)
+    def create_output_area(self):
+        self.output_area = scrolledtext.ScrolledText(self.root, font=self.kannada_font, wrap=tk.WORD, height=10,
+                                                     bg="black", fg="white")
+        self.output_area.pack(fill=tk.BOTH)
 
-# Configure style
-root.configure(bg='#334455')
-main_frame.configure(bg='#334455')
-button_frame.configure(bg='#334455')
-input_label.configure(bg='#334455')
-output_label.configure(bg='#334455')
+    def create_status_bar(self):
+        self.status_bar = tk.Label(self.root, text="ಸಿದ್ಧ / Ready", bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-# Run the application
-root.mainloop()
+    def load_example_code(self):
+        example_code = """ಪ್ರಾರಂಭಿಸಿ
+    ಮುದ್ರಿಸಿ("ನಮಸ್ಕಾರ ವಿಶ್ವ")
+ಮುಗಿಯಿರಿ"""
+        self.code_editor.insert(tk.END, example_code)
+
+    def configure_styles(self):
+        self.code_editor.tag_configure("error", foreground="red")
+
+    def new_file(self):
+        self.current_file = None
+        self.code_editor.delete(1.0, tk.END)
+        self.status_bar.config(text="ಹೊಸ ಫೈಲ್ / New File")
+
+    def open_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Kannada Files", "*.kn"), ("All Files", "*.*")])
+        if file_path:
+            with open(file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+                self.code_editor.delete(1.0, tk.END)
+                self.code_editor.insert(tk.END, content)
+            self.current_file = file_path
+            self.status_bar.config(text=f"ತೆರೆಯಲಾಗಿದೆ: {os.path.basename(file_path)}")
+
+    def save_file(self):
+        if self.current_file:
+            with open(self.current_file, "w", encoding="utf-8") as file:
+                file.write(self.code_editor.get(1.0, tk.END))
+            self.status_bar.config(text=f"ಉಳಿಸಲಾಗಿದೆ: {os.path.basename(self.current_file)}")
+        else:
+            self.save_as_file()
+
+    def save_as_file(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".kn",
+                                                 filetypes=[("Kannada Files", "*.kn"), ("All Files", "*.*")])
+        if file_path:
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(self.code_editor.get(1.0, tk.END))
+            self.current_file = file_path
+            self.status_bar.config(text=f"ಉಳಿಸಲಾಗಿದೆ: {os.path.basename(file_path)}")
+
+    def run_code(self):
+        code = self.code_editor.get(1.0, tk.END).strip()
+        print(f"Input code:\n{code}")  # Debug statement to print input code
+
+        # Run the compiler and get the output
+        output = run_compiler(code)
+
+        # Display the output in the IDE's output area
+        self.output_area.delete(1.0, tk.END)
+        self.output_area.insert(tk.END, output)
+
+        # Print the output for debugging
+        print(f"Output:\n{output}")
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = KannadaProgrammingIDE(root)
+    root.mainloop()
