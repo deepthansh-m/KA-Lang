@@ -62,7 +62,7 @@ class KannadaProgrammingIDE:
         example_code = """ಪ್ರಾರಂಭಿಸಿ
     ಹೆಸರು = ಆಗು()
 
-    a = ಆಗು()
+    a = true
     ಮುದ್ರಿಸಿ(ಹೆಸರು,a)
 
     ಮುದ್ರಿಸಿ(a)
@@ -141,7 +141,9 @@ class KannadaProgrammingIDE:
 
                 if node_type == 'print':
                     values = [self.evaluate_expression(value) for value in node['values']]
-                    output = " ".join(str(value) for value in values)
+                    # Preserve 'True'/'False' for booleans
+                    output = " ".join(
+                        str(value) if not isinstance(value, bool) else str(value).capitalize() for value in values)
                     self.output_area.configure(state="normal")
                     if '\n' in output:
                         self.output_area.insert(tk.END, output)
@@ -256,6 +258,9 @@ class KannadaProgrammingIDE:
                     return int(expr['value'])
 
                 elif expr_type == 'string':
+                    return expr['value']
+
+                elif expr_type == 'boolean':
                     return expr['value']
 
                 elif expr_type == 'identifier':

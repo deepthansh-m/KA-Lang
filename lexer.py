@@ -6,7 +6,7 @@ tokens = (
     'PRINT', 'LPAREN', 'RPAREN', 'ASSIGN', 'COLON', 'COMMA', 'STRING',
     'IF', 'ELSE', 'ELIF', 'WHILE', 'FOR', 'DEF', 'RETURN', 'CLASS', 'TRY',
     'EXCEPT', 'FINALLY', 'BREAK', 'CONTINUE', 'PASS', 'IN', 'RANGE', 'IMPORT',
-    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END', 'INPUT'  # Added INPUT
+    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END', 'INPUT', 'TRUE', 'FALSE'  # Added TRUE and FALSE
 )
 
 t_PLUS = r'\+'
@@ -59,8 +59,20 @@ def t_END(t):
     return t
 
 def t_INPUT(t):
-    r'ಆಗು'  # Kannada for "input"
+    r'ಆಗು'
     t.type = 'INPUT'
+    return t
+
+def t_TRUE(t):
+    r'true'
+    t.type = 'TRUE'
+    t.value = True
+    return t
+
+def t_FALSE(t):
+    r'false'
+    t.type = 'FALSE'
+    t.value = False
     return t
 
 def t_IF(t):
