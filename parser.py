@@ -3,8 +3,10 @@ from lexer import tokens, lexer
 
 precedence = (
     ('left', 'PLUS', 'MINUS'),
-    ('left', 'TIMES', 'DIVIDE'),
+    ('left', 'TIMES', 'DIVIDE', 'FLOOR_DIVIDE', 'MODULO'),
+    ('right', 'POWER'),
     ('left', 'GREATER', 'LESS', 'GREATEREQUAL', 'LESSEQUAL', 'EQUAL', 'NOTEQUAL'),
+    ('right', 'NOT'),
 )
 
 def p_program(p):
@@ -64,16 +66,22 @@ def p_input_statement(p):
 def p_expression(p):
     '''expression : expression PLUS term
                   | expression MINUS term
+                  | expression POWER term
                   | comparison
-                  | term'''
+                  | term
+                  | NOT expression'''
     if len(p) == 2:
         p[0] = p[1]
+    elif p[1] == '!':
+        p[0] = {"type": "unary_op", "op": "NOT", "operand": p[2]}
     else:
         p[0] = {"type": "binary_op", "op": p[2], "left": p[1], "right": p[3]}
 
 def p_term(p):
     '''term : term TIMES factor
             | term DIVIDE factor
+            | term FLOOR_DIVIDE factor
+            | term MODULO factor
             | factor'''
     if len(p) == 2:
         p[0] = p[1]
@@ -90,7 +98,7 @@ def p_factor(p):
               | MINUS factor'''
     if len(p) == 2:
         token = p[1]
-        if hasattr(token, 'type'):  # Token object from lexer
+        if hasattr(token, 'type'):
             if token.type == 'TRUE':
                 p[0] = {"type": "boolean", "value": True}
             elif token.type == 'FALSE':
@@ -102,7 +110,9 @@ def p_factor(p):
                 p[0] = {"type": "string", "value": bytes(raw_str, "utf-8").decode("unicode_escape")}
             elif token.type == 'ID':
                 p[0] = {"type": "identifier", "name": token.value}
-        else:  # Raw value (fallback, should not happen with proper lexer)
+            else:
+                raise SyntaxError(f"Unexpected token type: {token.type}")
+        else:
             if isinstance(token, bool):
                 p[0] = {"type": "boolean", "value": token}
             elif isinstance(token, int):
@@ -112,8 +122,13 @@ def p_factor(p):
                 p[0] = {"type": "string", "value": bytes(raw_str, "utf-8").decode("unicode_escape")}
             elif isinstance(token, str):
                 p[0] = {"type": "identifier", "name": token}
+            else:
+                raise SyntaxError(f"Unexpected value: {token}")
     else:
-        p[0] = {"type": "unary_op", "op": "NEGATE", "operand": p[2]}
+        if p[1] == '-':
+            p[0] = {"type": "unary_op", "op": "NEGATE", "operand": p[2]}
+        elif p[1] == '(':
+            p[0] = p[2]
 
 def p_comparison(p):
     '''comparison : expression LESS expression
@@ -133,24 +148,24 @@ def p_comparison(p):
     p[0] = {"type": "comparison", "op": op_map[p[2]], "left": p[1], "right": p[3]}
 
 def p_if_statement(p):
-    '''if_statement : IF LPAREN expression RPAREN COLON statements
-                    | IF LPAREN expression RPAREN COLON statements ELSE COLON statements
-                    | IF LPAREN expression RPAREN COLON statements ELIF LPAREN expression RPAREN COLON statements'''
-    if len(p) == 7:
-        p[0] = {"type": "if", "condition": p[3], "body": p[6]}
-    elif p[7] == 'ELSE':
-        p[0] = {"type": "if", "condition": p[3], "body": p[6], "else_body": p[9]}
-    else:
-        elif_clause = {"type": "if", "condition": p[9], "body": p[12]}
-        p[0] = {"type": "if", "condition": p[3], "body": p[6], "else_body": [elif_clause]}
+    '''if_statement : IF LPAREN expression RPAREN statements END
+                    | IF LPAREN expression RPAREN statements ELSE statements END
+                    | IF LPAREN expression RPAREN statements ELIF LPAREN expression RPAREN statements ELSE statements END'''
+    if len(p) == 7:  # if (condition) block end
+        p[0] = {"type": "if", "condition": p[3], "body": p[5]}
+    elif len(p) == 9:  # if (condition) block else block end
+        p[0] = {"type": "if", "condition": p[3], "body": p[5], "else_body": p[7]}
+    elif len(p) == 13:  # if (condition) block elif (condition) block else block end
+        elif_clause = {"type": "if", "condition": p[8], "body": p[10]}
+        p[0] = {"type": "if", "condition": p[3], "body": p[5], "elif_clauses": [elif_clause], "else_body": p[12]}
 
 def p_while_statement(p):
-    '''while_statement : WHILE LPAREN expression RPAREN COLON statements'''
-    p[0] = {"type": "while", "condition": p[3], "body": p[6]}
+    '''while_statement : WHILE LPAREN expression RPAREN statements END'''
+    p[0] = {"type": "while", "condition": p[3], "body": p[5]}
 
 def p_for_statement(p):
-    '''for_statement : FOR LPAREN ID IN RANGE LPAREN NUMBER COMMA NUMBER RPAREN RPAREN COLON statements'''
-    p[0] = {"type": "for", "var": p[3], "start": p[7], "end": p[9], "body": p[13]}
+    '''for_statement : FOR LPAREN ID IN RANGE LPAREN NUMBER COMMA NUMBER RPAREN RPAREN statements END'''
+    p[0] = {"type": "for", "var": p[3], "start": p[7], "end": p[9], "body": p[12]}
 
 def p_function_def(p):
     '''function_def : DEF ID LPAREN parameter_list RPAREN COLON statements'''
@@ -272,7 +287,7 @@ class KannadaInterpreter:
         node_type = node.get('type', '')
 
         if node_type == 'print':
-            values = [self.evaluate_expression(value) for value in node['values']]
+            values = [self.evaluate_expression(value) for value in node['values'] if value is not None]
             output = " ".join(str(value) if not isinstance(value, bool) else str(value).capitalize() for value in values)
             print(output, end="" if '\n' in output else " ")
             return None
@@ -284,7 +299,7 @@ class KannadaInterpreter:
 
         elif node_type == 'input':
             user_input = input("ಒಡ್ಡಿ/Enter input: ")
-            print()  # Newline after input
+            print()
             self.variables[node['target']] = user_input
             return None
 
@@ -292,8 +307,13 @@ class KannadaInterpreter:
             condition = self.evaluate_expression(node['condition'])
             if condition:
                 return self.evaluate(node['body'])
-            elif 'else_body' in node:
+            elif 'elif_clauses' in node:
+                for elif_clause in node['elif_clauses']:
+                    if self.evaluate_expression(elif_clause['condition']):
+                        return self.evaluate(elif_clause['body'])
+            if 'else_body' in node:
                 return self.evaluate(node['else_body'])
+            return None
 
         elif node_type == 'while':
             condition = self.evaluate_expression(node['condition'])
@@ -399,6 +419,12 @@ class KannadaInterpreter:
                 return left * right
             elif op == '/':
                 return left / right
+            elif op == '//':
+                return left // right
+            elif op == '**':
+                return left ** right
+            elif op == '%':
+                return left % right
 
         elif expr_type == 'comparison':
             left = self.evaluate_expression(expr['left'])
@@ -422,6 +448,8 @@ class KannadaInterpreter:
             op = expr['op']
             if op == 'NEGATE':
                 return -operand
+            elif op == 'NOT':
+                return not operand
 
         elif expr_type == 'function_call':
             return self.call_function(expr)
@@ -454,7 +482,7 @@ def run_compiler(code):
             return
         interpreter = KannadaInterpreter()
         interpreter.evaluate(ast)
-        print()  # Ensure final newline
+        print()
         print("ಯಶಸ್ವಿಯಾಗಿ ಕಾರ್ಯಗತಗೊಂಡಿದೆ/Successfully executed")
     except Exception as e:
         print(f"ದೋಷ/Error: {str(e)}")

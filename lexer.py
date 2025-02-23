@@ -6,13 +6,18 @@ tokens = (
     'PRINT', 'LPAREN', 'RPAREN', 'ASSIGN', 'COLON', 'COMMA', 'STRING',
     'IF', 'ELSE', 'ELIF', 'WHILE', 'FOR', 'DEF', 'RETURN', 'CLASS', 'TRY',
     'EXCEPT', 'FINALLY', 'BREAK', 'CONTINUE', 'PASS', 'IN', 'RANGE', 'IMPORT',
-    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END', 'INPUT', 'TRUE', 'FALSE'  # Added TRUE and FALSE
+    'FROM', 'AS', 'GLOBAL', 'NONLOCAL', 'START', 'END', 'INPUT', 'TRUE', 'FALSE',
+    'NOT', 'FLOOR_DIVIDE', 'POWER', 'MODULO', 'END_IF'
 )
 
+# Operator tokens
 t_PLUS = r'\+'
 t_MINUS = r'-'
 t_TIMES = r'\*'
 t_DIVIDE = r'/'
+t_FLOOR_DIVIDE = r'//'
+t_POWER = r'\*\*'
+t_MODULO = r'%'
 t_ASSIGN = r'='
 t_EQUAL = r'=='
 t_NOTEQUAL = r'!='
@@ -24,6 +29,7 @@ t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COLON = r':'
 t_COMMA = r','
+t_NOT = r'!'
 
 def t_NUMBER(t):
     r'\d+'
@@ -43,19 +49,25 @@ def t_error(t):
     print(f"ಅಮಾನ್ಯ ಅಕ್ಷರ/Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
 
+# Kannada reserved words
 def t_START(t):
     r'ಪ್ರಾರಂಭಿಸಿ'
     t.type = 'START'
     return t
 
-def t_PRINT(t):
-    r'ಮುದ್ರಿಸಿ|ಮುದ್ರಣ'
-    t.type = 'PRINT'
-    return t
-
 def t_END(t):
     r'ಮುಗಿಯಿರಿ'
     t.type = 'END'
+    return t
+
+def t_END_IF(t):
+    r'ಮುಗಿಸು_ನಂತರ'
+    t.type = 'END_IF'
+    return t
+
+def t_PRINT(t):
+    r'ಮುದ್ರಿಸಿ|ಮುದ್ರಣ'
+    t.type = 'PRINT'
     return t
 
 def t_INPUT(t):
@@ -198,8 +210,10 @@ def test_lexer(data):
 if __name__ == "__main__":
     test_data = """
     ಪ್ರಾರಂಭಿಸಿ
-        ಹೆಸರು = ಆಗು()
-        ಮುದ್ರಿಸಿ(ಹೆಸರು)
+        a = 5
+        ನಂತರ (a > 3)
+            ಮುದ್ರಿಸಿ("a is greater than 3")
+        ಮುಗಿಯಿರಿ
     ಮುಗಿಯಿರಿ
     """
     tokens = test_lexer(test_data)
